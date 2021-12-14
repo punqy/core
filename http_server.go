@@ -91,7 +91,7 @@ func (r Request) Get(key string, def string) string {
 
 
 type Server interface {
-	Serve(ctx context.Context, interrupt chan os.Signal)
+	Serve(ctx context.Context)
 }
 
 type server struct {
@@ -107,7 +107,7 @@ func NewHttpServer(router Router, serverPort int) Server {
 	return &e
 }
 
-func (s *server) Serve(ctx context.Context, appShutdown chan os.Signal) {
+func (s *server) Serve(ctx context.Context) {
 	logger.Infof("Http server listening port :%d", s.serverPort)
 	server := &nethttp.Server{Addr: fmt.Sprintf(":%d", s.serverPort), Handler: s.router.GetMux()}
 	interrupt := make(chan os.Signal, 1)
@@ -129,7 +129,6 @@ func (s *server) Serve(ctx context.Context, appShutdown chan os.Signal) {
 	signal.Notify(interrupt, os.Interrupt)
 
 	<-interrupt
-	appShutdown <- os.Interrupt
 	s.shutdown(ctx, server)
 }
 
