@@ -15,9 +15,10 @@ type Command struct {
 	Children Commands
 }
 
-func Execute(commands Commands)  {
+func Execute(commands Commands) *cobra.Command {
 	var rootCmd = &cobra.Command{}
 	bindCommands(commands, rootCmd)
+	return rootCmd
 }
 
 func bindCommands(commands Commands, root *cobra.Command) {
