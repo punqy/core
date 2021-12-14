@@ -8,7 +8,7 @@ type RbacConfig struct {
 	RoleHierarchy RoleHierarchy
 }
 
-type HttpConfig struct {
+type SecurityConfig struct {
 	Firewall FirewallConfig
 	Rbac     RbacConfig
 }
