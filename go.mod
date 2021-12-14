@@ -7,5 +7,5 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.2.1
-	golang.org/x/crypto v0.0.0-20211209193657-4570a0811e8b // indirect
+	golang.org/x/crypto v0.0.0-20211209193657-4570a0811e8b
 )
