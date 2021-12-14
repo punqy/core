@@ -4,22 +4,16 @@ import (
 	"context"
 )
 
-const ContextKey = "security-context"
+const SecurityContextKey = "security-context"
 
-type Context struct {
+type SecurityContext struct {
 	Token AuthToken `json:"token"`
 }
 
-func FromContext(ctx context.Context) (Context, bool) {
-	s, ok := ctx.Value(ContextKey).(Context)
+func FromContext(ctx context.Context) (SecurityContext, bool) {
+	s, ok := ctx.Value(SecurityContextKey).(SecurityContext)
 	return s, ok
 }
-
-type Profile interface {
-	SetSecurityContext(securityContext Context)
-}
-
-const profileContextKey = "punqy-profile"
 
 type User interface {
 	GetID() string

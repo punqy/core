@@ -57,10 +57,10 @@ func (f *firewall) Handle(req Request, next Handler) Response {
 		if token == nil {
 			return NewErrorJsonResponse(InvalidGrantErr())
 		}
-		securityContext := Context{
+		securityContext := SecurityContext{
 			Token: token,
 		}
-		ctx := context.WithValue(req.Context(), ContextKey, securityContext)
+		ctx := context.WithValue(req.Context(), SecurityContextKey, securityContext)
 		req.Request = req.WithContext(ctx)
 		if appContext, ok := ctx.Value(profileContextKey).(Profile); ok {
 			appContext.SetSecurityContext(securityContext)
