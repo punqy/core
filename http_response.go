@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/json"
+	"github.com/pkg/errors"
 	nethttp "net/http"
 )
 
@@ -128,8 +129,9 @@ func NewErrorJsonResponse(error error, headers ...Header) Response {
 		return NewJsonResponse(nil, nethttp.StatusOK, headers...)
 	}
 	nextCode := nethttp.StatusInternalServerError
-	if erro, ok := error.(erro); ok {
-		nextCode = erro.GetCode()
+	var er erro
+	if errors.As(error, &er) {
+		nextCode = er.GetCode()
 	}
 	return jsonResponse{
 		data:    error.Error(),
