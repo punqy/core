@@ -18,7 +18,6 @@ import (
 )
 
 type DatabaseConfig struct {
-
 }
 
 func NewConnection(driverName, dsn string) *sqlx.DB {
@@ -159,6 +158,9 @@ func (d *dal) Transactional(ctx context.Context, cb func(ctx context.Context) er
 func (d *dal) BuildSelect(sel ...string) *qbuilder.SelectBuilder {
 	return qbuilder.Select(sel...)
 }
+func (d *dal) BuildSelectE(obj interface{}) *qbuilder.SelectBuilder {
+	return qbuilder.SelectE(obj)
+}
 
 func (d *dal) SubSelect(sel string) *qbuilder.SelectBuilder {
 	return qbuilder.SubSelect(sel)
@@ -214,7 +216,7 @@ func (d *dal) FindOneBy(ctx context.Context, tableName string, dest interface{},
 		return Wrap(fmt.Errorf("must pass a pointer to a stuct, %T", dest))
 	}
 	args, expressions := d.ToArgsAndExpressions(cond)
-	query := d.BuildSelect().
+	query := d.BuildSelectE(dest).
 		From(tableName).
 		Where(expressions...).
 		Limit(1).
@@ -364,7 +366,6 @@ func getTransactionFromContext(ctx context.Context) *sqlx.Tx {
 	}
 	return tr.tx
 }
-
 
 const (
 	ErrLockNotAvailable   pq.ErrorCode = "55P03"
