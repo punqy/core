@@ -83,8 +83,8 @@ type JsonResponseFormat struct {
 	Payload interface{} `json:"payload"`
 }
 
-func NewJsonResponse(data interface{}, code int, headers ...Header) Response {
-	return jsonResponse{data: data, code: code, headers: headers}
+func NewJsonResponse(data interface{}, code int, error error, headers ...Header) Response {
+	return jsonResponse{data: data, code: code, error: error, headers: headers}
 }
 
 func (r jsonResponse) GetBytes() ([]byte, error) {
@@ -123,20 +123,14 @@ func (r *jsonResponse) SetHeaders(headers []Header) {
 	r.headers = headers
 }
 
-
 func NewErrorJsonResponse(error error, headers ...Header) Response {
 	if error == nil {
-		return NewJsonResponse(nil, nethttp.StatusOK, headers...)
+		return NewJsonResponse(nil, nethttp.StatusOK, error, headers...)
 	}
 	nextCode := nethttp.StatusInternalServerError
 	var er erro
 	if errors.As(error, &er) {
 		nextCode = er.GetCode()
 	}
-	return jsonResponse{
-		data:    error.Error(),
-		error:   error,
-		code:    nextCode,
-		headers: headers,
-	}
+	return NewJsonResponse(error.Error(), nextCode, error, headers...)
 }
