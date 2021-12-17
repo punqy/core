@@ -78,7 +78,7 @@ func (d *dal) pipeQueryLog(ctx context.Context, query string, args []interface{}
 	if !d.profilerEnabled {
 		return call()
 	}
-	appContext, ok := ctx.Value(profileContextKey).(Profile)
+	appContext, ok := ctx.Value(profileContextKey).(*Profile)
 	if !ok {
 		return call()
 	}
@@ -93,7 +93,7 @@ func (d *dal) pipeResultQueryLog(ctx context.Context, query string, args []inter
 	if !d.profilerEnabled {
 		return call()
 	}
-	appContext, ok := ctx.Value(profileContextKey).(Profile)
+	appContext, ok := ctx.Value(profileContextKey).(*Profile)
 	if !ok {
 		return call()
 	}
