@@ -18,7 +18,6 @@ import (
 )
 
 type DatabaseConfig struct {
-
 }
 
 func NewConnection(driverName, dsn string) *sqlx.DB {
@@ -50,6 +49,7 @@ type Dal interface {
 	Transactional(ctx context.Context, cb func(ctx context.Context) error) error
 	SubSelect(sel string) *qbuilder.SelectBuilder
 	BuildSelect(sel ...string) *qbuilder.SelectBuilder
+	BuildSelectE(obj interface{}) *qbuilder.SelectBuilder
 	BuildInsert(into string) *qbuilder.InsertBuilder
 	BuildUpdate(rel string) *qbuilder.UpdateBuilder
 	BuildDelete(rel string) *qbuilder.DeleteBuilder
@@ -78,7 +78,7 @@ func (d *dal) pipeQueryLog(ctx context.Context, query string, args []interface{}
 	if !d.profilerEnabled {
 		return call()
 	}
-	appContext, ok := ctx.Value(profileContextKey).(Profile)
+	appContext, ok := ctx.Value(profileContextKey).(*Profile)
 	if !ok {
 		return call()
 	}
@@ -93,7 +93,7 @@ func (d *dal) pipeResultQueryLog(ctx context.Context, query string, args []inter
 	if !d.profilerEnabled {
 		return call()
 	}
-	appContext, ok := ctx.Value(profileContextKey).(Profile)
+	appContext, ok := ctx.Value(profileContextKey).(*Profile)
 	if !ok {
 		return call()
 	}
@@ -160,6 +160,10 @@ func (d *dal) BuildSelect(sel ...string) *qbuilder.SelectBuilder {
 	return qbuilder.Select(sel...)
 }
 
+func (d *dal) BuildSelectE(obj interface{}) *qbuilder.SelectBuilder {
+	return qbuilder.SelectE(obj)
+}
+
 func (d *dal) SubSelect(sel string) *qbuilder.SelectBuilder {
 	return qbuilder.SubSelect(sel)
 }
@@ -214,7 +218,7 @@ func (d *dal) FindOneBy(ctx context.Context, tableName string, dest interface{},
 		return Wrap(fmt.Errorf("must pass a pointer to a stuct, %T", dest))
 	}
 	args, expressions := d.ToArgsAndExpressions(cond)
-	query := d.BuildSelect().
+	query := d.BuildSelectE(dest).
 		From(tableName).
 		Where(expressions...).
 		Limit(1).
@@ -364,7 +368,6 @@ func getTransactionFromContext(ctx context.Context) *sqlx.Tx {
 	}
 	return tr.tx
 }
-
 
 const (
 	ErrLockNotAvailable   pq.ErrorCode = "55P03"
