@@ -49,6 +49,7 @@ type Dal interface {
 	Transactional(ctx context.Context, cb func(ctx context.Context) error) error
 	SubSelect(sel string) *qbuilder.SelectBuilder
 	BuildSelect(sel ...string) *qbuilder.SelectBuilder
+	BuildSelectE(obj interface{}) *qbuilder.SelectBuilder
 	BuildInsert(into string) *qbuilder.InsertBuilder
 	BuildUpdate(rel string) *qbuilder.UpdateBuilder
 	BuildDelete(rel string) *qbuilder.DeleteBuilder
@@ -158,6 +159,7 @@ func (d *dal) Transactional(ctx context.Context, cb func(ctx context.Context) er
 func (d *dal) BuildSelect(sel ...string) *qbuilder.SelectBuilder {
 	return qbuilder.Select(sel...)
 }
+
 func (d *dal) BuildSelectE(obj interface{}) *qbuilder.SelectBuilder {
 	return qbuilder.SelectE(obj)
 }
