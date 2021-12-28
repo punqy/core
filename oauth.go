@@ -91,6 +91,7 @@ type oauth struct {
 	ats             OAuthAccessTokenStorage
 	rts             OAuthRefreshTokenStorage
 	pe              PasswordEncoder
+	up              UserProvider
 	accessTokenTTL  int
 	refreshTokenTTL int
 }
@@ -100,10 +101,11 @@ func NewOAuth(
 	ats OAuthAccessTokenStorage,
 	rts OAuthRefreshTokenStorage,
 	pe PasswordEncoder,
+	up UserProvider,
 	accessTokenTTL int,
 	refreshTokenTTL int,
 ) OAuth {
-	return &oauth{cs: cs, ats: ats, rts: rts, pe: pe, accessTokenTTL: accessTokenTTL, refreshTokenTTL: refreshTokenTTL}
+	return &oauth{cs: cs, ats: ats, rts: rts, pe: pe, up: up, accessTokenTTL: accessTokenTTL, refreshTokenTTL: refreshTokenTTL}
 }
 
 func (a *oauth) GrantAccessToken(ctx context.Context, req GrantAccessTokenRequest) (GrantAccessTokenResponse, error) {
@@ -113,6 +115,8 @@ func (a *oauth) GrantAccessToken(ctx context.Context, req GrantAccessTokenReques
 		return response, InvalidGrantErr()
 	}
 	switch req.GrantType {
+	case GrantTypePassword:
+		return a.grantAccessTokenUserCredentials(ctx, client, req.Username, req.Password)
 	case GrantTypeRefreshToken:
 		return a.grantAccessTokenRefresh(ctx, req.RefreshToken)
 	case ClientCredentials:
@@ -120,6 +124,20 @@ func (a *oauth) GrantAccessToken(ctx context.Context, req GrantAccessTokenReques
 	default:
 		return response, UnknownGrantTypeErr()
 	}
+}
+
+func (a *oauth) grantAccessTokenUserCredentials(ctx context.Context, client OAuthClient, username string, password string) (GrantAccessTokenResponse, error) {
+	var response GrantAccessTokenResponse
+	var invalidCredentialsErr = InvalidCredentialsErr()
+	user, err := a.up.FindUserByUsername(ctx, username)
+	if err != nil {
+		return response, invalidCredentialsErr
+	}
+	if valid, _ := a.pe.IsPasswordValid(user.GetPassword(), password); !valid {
+		return response, invalidCredentialsErr
+	}
+	uid := user.GetID()
+	return a.createAccessTokenResponse(ctx, &uid, client.GetID())
 }
 
 func (a *oauth) grantAccessTokenClientCredentials(ctx context.Context, clientID string) (GrantAccessTokenResponse, error) {

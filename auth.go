@@ -17,6 +17,7 @@ func FromContext(ctx context.Context) (SecurityContext, bool) {
 
 type User interface {
 	GetID() string
+	GetPassword() string
 }
 
 type AuthToken interface {
@@ -25,5 +26,6 @@ type AuthToken interface {
 }
 
 type UserProvider interface {
-	FindUserByID(context.Context, string) (User, error)
+	FindUserByID(ctx context.Context, id string) (User, error)
+	FindUserByUsername(ctx context.Context, username string) (User, error)
 }
