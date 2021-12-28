@@ -220,10 +220,12 @@ github.com/sirupsen/logrus v1.8.1 h1:dJKuHgqk1NNQlqoA6BTlM1Wf9DOH3NBjQyu0h9+AZZE
 github.com/sirupsen/logrus v1.8.1/go.mod h1:yWOB1SBYBC5VeMP7gHvWumXLIWorT60ONWic61uBYv0=
 github.com/slmder/qbuilder v0.6.4 h1:YxTUFe6p9BGS/ILuLlKqYZZaTNXsus6FW2yKnu4zr7g=
 github.com/slmder/qbuilder v0.6.4/go.mod h1:iDh6DP7lEGP2PvMthzslK7/7IvQ05XWSX8kONF+82Cw=
-github.com/slmder/qbuilder v0.6.5 h1:OZLcfFXJ/Aptjalm0KPFncajawuFYEBgRDFVBOnhHIE=
-github.com/slmder/qbuilder v0.6.5/go.mod h1:iDh6DP7lEGP2PvMthzslK7/7IvQ05XWSX8kONF+82Cw=
-github.com/slmder/qbuilder v0.6.6 h1:ePk/NIyMAdwi6mHPijLIEmnkO69xT7r7IvI1Q7BXXUw=
-github.com/slmder/qbuilder v0.6.6/go.mod h1:iDh6DP7lEGP2PvMthzslK7/7IvQ05XWSX8kONF+82Cw=
+github.com/slmder/qbuilder v0.6.7 h1:wB+0glJogkuYHSkDNExfjf+w49jPrbaxJ2tOHNVhhdY=
+github.com/slmder/qbuilder v0.6.7/go.mod h1:iDh6DP7lEGP2PvMthzslK7/7IvQ05XWSX8kONF+82Cw=
+github.com/slmder/qbuilder v0.6.8 h1:lO9c3+kn87+W0gDVjhjuH8xeAajz9HhKhI4sZ9Re8hw=
+github.com/slmder/qbuilder v0.6.8/go.mod h1:iDh6DP7lEGP2PvMthzslK7/7IvQ05XWSX8kONF+82Cw=
+github.com/slmder/qbuilder v0.6.9-0.20211217180716-0c4711fbf476 h1:6DQf3vLPuSv34ifUg6IKILNSnaryu16QNjnOZSkboWg=
+github.com/slmder/qbuilder v0.6.9-0.20211217180716-0c4711fbf476/go.mod h1:iDh6DP7lEGP2PvMthzslK7/7IvQ05XWSX8kONF+82Cw=
 github.com/slmder/qbuilder v0.7.0 h1:adW6dKio0jqU3yAK45SxgQ5nWYO4OTsgtWWvkZXZ2oE=
 github.com/slmder/qbuilder v0.7.0/go.mod h1:iDh6DP7lEGP2PvMthzslK7/7IvQ05XWSX8kONF+82Cw=
 github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d/go.mod h1:OnSkiWE9lh6wB0YB77sQom3nweQdgAjqCqsofrRNTgc=
