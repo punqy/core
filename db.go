@@ -49,10 +49,13 @@ type Dal interface {
 	Transactional(ctx context.Context, cb func(ctx context.Context) error) error
 	SubSelect(sel string) *qbuilder.SelectBuilder
 	BuildSelect(sel ...string) *qbuilder.SelectBuilder
-	BuildSelectE(obj interface{}) *qbuilder.SelectBuilder
+	SelectE(obj interface{}) *qbuilder.SelectBuilder
 	BuildInsert(into string) *qbuilder.InsertBuilder
+	InsertE(ctx context.Context, table string, obj interface{}) (sql.Result, error)
 	BuildUpdate(rel string) *qbuilder.UpdateBuilder
+	UpdateE(ctx context.Context, table string, obj interface{}, where... string) (sql.Result, error)
 	BuildDelete(rel string) *qbuilder.DeleteBuilder
+	DeleteE(ctx context.Context, table string, obj interface{}, where... string) (sql.Result, error)
 	ToArgsAndExpressions(conditions map[string]interface{}) ([]interface{}, []string)
 	PipeErr(err error) error
 	FindBy(ctx context.Context, tableName string, dest interface{}, cond qbuilder.Conditions, pag Pagination) error
@@ -160,7 +163,7 @@ func (d *dal) BuildSelect(sel ...string) *qbuilder.SelectBuilder {
 	return qbuilder.Select(sel...)
 }
 
-func (d *dal) BuildSelectE(obj interface{}) *qbuilder.SelectBuilder {
+func (d *dal) SelectE(obj interface{}) *qbuilder.SelectBuilder {
 	return qbuilder.SelectE(obj)
 }
 
@@ -172,12 +175,35 @@ func (d *dal) BuildInsert(into string) *qbuilder.InsertBuilder {
 	return qbuilder.Insert(into)
 }
 
+func (d *dal) InsertE(ctx context.Context, table string, obj interface{}) (sql.Result, error) {
+	result, err := d.DoInsert(ctx, qbuilder.Insert(table).RowE(obj).ToSQL(), obj)
+	return result, err
+}
+
 func (d *dal) BuildUpdate(rel string) *qbuilder.UpdateBuilder {
 	return qbuilder.Update(rel)
 }
 
+func (d *dal) UpdateE(ctx context.Context, table string, obj interface{}, where... string) (sql.Result, error) {
+	expr := "id = :id"
+	if len(where) > 0 {
+		expr = where[0]
+	}
+	result, err := d.DoUpdate(ctx, qbuilder.Update(table).SetMapE(obj).Where(expr).ToSQL(), obj)
+	return result, err
+}
+
 func (d *dal) BuildDelete(rel string) *qbuilder.DeleteBuilder {
 	return qbuilder.Delete(rel)
+}
+
+func (d *dal) DeleteE(ctx context.Context, table string, obj interface{}, where... string) (sql.Result, error) {
+	expr := "id = :id"
+	if len(where) > 0 {
+		expr = where[0]
+	}
+	result, err := d.DoUpdate(ctx, qbuilder.Delete(table).Where(expr).ToSQL(), obj)
+	return result, err
 }
 
 func (d *dal) FindBy(ctx context.Context, tableName string, dest interface{}, cond qbuilder.Conditions, pager Pagination) error {
@@ -218,7 +244,7 @@ func (d *dal) FindOneBy(ctx context.Context, tableName string, dest interface{},
 		return Wrap(fmt.Errorf("must pass a pointer to a stuct, %T", dest))
 	}
 	args, expressions := d.ToArgsAndExpressions(cond)
-	query := d.BuildSelectE(dest).
+	query := d.SelectE(dest).
 		From(tableName).
 		Where(expressions...).
 		Limit(1).
