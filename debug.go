@@ -134,26 +134,26 @@ func (l *Profile) PrintQueryLog() {
 	}
 }
 
-type Manager interface {
+type ProfilerManager interface {
 	Save(Profile) error
 	Last() (Profile, error)
 	List() ([]Profile, error)
 	Get(string) (Profile, error)
 }
 
-type manager struct {
+type profilerManager struct {
 	profilerDir string
 	profileDir  string
 }
 
-func NewManager(profilerDir string) Manager {
-	return &manager{
+func NewManager(profilerDir string) ProfilerManager {
+	return &profilerManager{
 		profilerDir: profilerDir,
 		profileDir:  fmt.Sprintf("%s/profile", profilerDir),
 	}
 }
 
-func (m *manager) List() ([]Profile, error) {
+func (m *profilerManager) List() ([]Profile, error) {
 	var profiles = make([]Profile, 0)
 	files, err := ioutil.ReadDir(m.profileDir)
 	if err != nil {
@@ -181,7 +181,7 @@ func (m *manager) List() ([]Profile, error) {
 	return profiles, nil
 }
 
-func (m *manager) Last() (Profile, error) {
+func (m *profilerManager) Last() (Profile, error) {
 	var p Profile
 	files, err := ioutil.ReadDir(m.profileDir)
 	if err != nil {
@@ -203,7 +203,7 @@ func (m *manager) Last() (Profile, error) {
 	return p, nil
 }
 
-func (m *manager) Get(id string) (Profile, error) {
+func (m *profilerManager) Get(id string) (Profile, error) {
 	var p Profile
 	marshaled, err := os.ReadFile(fmt.Sprintf("%s/%s.json", m.profileDir, id))
 	if err != nil {
@@ -215,7 +215,7 @@ func (m *manager) Get(id string) (Profile, error) {
 	return p, nil
 }
 
-func (m *manager) Save(profile Profile) error {
+func (m *profilerManager) Save(profile Profile) error {
 	if err := os.MkdirAll(m.profileDir, 0755); err != nil {
 		return err
 	}
@@ -242,7 +242,7 @@ type HttpProfilerMiddleware interface {
 
 type middleware struct {
 	enabled bool
-	manager Manager
+	manager ProfilerManager
 	colors  colors
 }
 
@@ -256,7 +256,7 @@ type colors struct {
 	cyanHi func(a ...interface{}) string
 }
 
-func NewProfilerMiddleware(enabled bool, manager Manager) HttpProfilerMiddleware {
+func NewProfilerMiddleware(enabled bool, manager ProfilerManager) HttpProfilerMiddleware {
 	return &middleware{
 		enabled: enabled,
 		manager: manager,

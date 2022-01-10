@@ -25,7 +25,7 @@ type htmlTemplate struct {
 
 type Vars map[string]interface{}
 
-type Engine interface {
+type TemplatingEngine interface {
 	Render(tpl string, vars interface{}) (bytes.Buffer, error)
 }
 
@@ -35,7 +35,7 @@ type engine struct {
 	functions   template.FuncMap
 }
 
-func NewEngine(templateDir string, functions template.FuncMap) Engine {
+func NewTemplatingEngine(templateDir string, functions template.FuncMap) TemplatingEngine {
 	e := &engine{
 		templateDir: templateDir,
 		templates:   make(map[string]*template.Template),

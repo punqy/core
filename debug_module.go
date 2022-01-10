@@ -2,11 +2,11 @@ package core
 
 type ModuleProfiler interface {
 	HttpProfilerMiddleware() HttpProfilerMiddleware
-	ProfilerManager() Manager
+	ProfilerManager() ProfilerManager
 }
 
 type moduleProfiler struct {
-	profilerManager        Manager
+	profilerManager        ProfilerManager
 	httpProfilerMiddleware HttpProfilerMiddleware
 }
 
@@ -14,7 +14,7 @@ func (m *moduleProfiler) HttpProfilerMiddleware() HttpProfilerMiddleware {
 	return m.httpProfilerMiddleware
 }
 
-func (m *moduleProfiler) ProfilerManager() Manager {
+func (m *moduleProfiler) ProfilerManager() ProfilerManager {
 	return m.profilerManager
 }
 
