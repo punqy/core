@@ -7,7 +7,7 @@ import (
 const SecurityContextKey = "security-context"
 
 type SecurityContext struct {
-	Token AuthToken `json:"token"`
+	Token GuardToken `json:"token"`
 }
 
 func FromContext(ctx context.Context) (SecurityContext, bool) {
@@ -18,9 +18,10 @@ func FromContext(ctx context.Context) (SecurityContext, bool) {
 type User interface {
 	GetID() string
 	GetPassword() string
+	GetUsername() string
 }
 
-type AuthToken interface {
+type GuardToken interface {
 	User() User
 	Provider() string
 }

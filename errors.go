@@ -75,6 +75,24 @@ func BadRequestErr(message ...string) error {
 
 //======================================================================================================================
 
+type UnprocessableEntityErr struct {
+	message string
+}
+
+func (e UnprocessableEntityErr) GetCode() int {
+	return http.StatusUnprocessableEntity
+}
+
+func (e UnprocessableEntityErr) Error() string {
+	return e.message
+}
+
+func NewUnprocessableEntityErr(message ...string) error {
+	return wrapErr(UnprocessableEntityErr{message: JoinStrings("Unprocessable entity", message...)})
+}
+
+//======================================================================================================================
+
 type ObjectOnLock struct {
 	message string
 }

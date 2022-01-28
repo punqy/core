@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/fatih/color v1.7.0
+	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
 	github.com/google/uuid v1.1.2
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/julienschmidt/httprouter v1.3.0

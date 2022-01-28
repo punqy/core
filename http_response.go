@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/json"
+	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/pkg/errors"
 	nethttp "net/http"
 )
@@ -37,6 +38,14 @@ func NewRedirectResponse(location string) Response {
 		Name:  "Location",
 		Value: location,
 	})
+}
+
+func NewValidationErrJsonResponse(error error) Response {
+	errs, ok := error.(validation.Errors)
+	if !ok {
+		return NewErrorJsonResponse(errors.New("error must be of type validation.Errors"))
+	}
+	return NewJsonResponse(errs, nethttp.StatusUnprocessableEntity, NewUnprocessableEntityErr())
 }
 
 func (r response) GetBytes() ([]byte, error) {

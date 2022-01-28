@@ -29,7 +29,7 @@ type Area struct {
 }
 
 type Authenticator interface {
-	Authorize(r Request) (AuthToken, error)
+	Authenticate(r Request) (GuardToken, error)
 }
 
 type VoidAuthenticator struct {
@@ -50,7 +50,7 @@ func (f *firewall) Handle(req Request, next Handler) Response {
 		if area.Authenticator == nil {
 			panic("Secure area must have an Authenticator.")
 		}
-		token, err := area.Authenticator.Authorize(req)
+		token, err := area.Authenticator.Authenticate(req)
 		if err != nil {
 			return NewErrorJsonResponse(AccessDeniedErr(err.Error()))
 		}
