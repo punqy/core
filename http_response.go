@@ -2,9 +2,10 @@ package core
 
 import (
 	"encoding/json"
+
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/pkg/errors"
-	nethttp "net/http"
+	"github.com/valyala/fasthttp"
 )
 
 const (
@@ -18,7 +19,7 @@ type response struct {
 	bytes   []byte
 	error   error
 	code    int
-	headers []Header
+	headers Headers
 }
 
 func NewResponse(bytes []byte, error error, code int, headers ...Header) Response {
@@ -26,7 +27,7 @@ func NewResponse(bytes []byte, error error, code int, headers ...Header) Respons
 }
 
 func NewHtmlResponse(bytes []byte, code int) Response {
-	return &response{bytes: bytes, code: code, headers: []Header{
+	return &response{bytes: bytes, code: code, headers: Headers{
 		{
 			Name:  ContentTypeHeaderName,
 			Value: ApplicationTextHtmlHeaderVal,
@@ -35,7 +36,7 @@ func NewHtmlResponse(bytes []byte, code int) Response {
 }
 
 func NewErrorHtmlResponse(err error, code int) Response {
-	return &response{bytes: []byte(err.Error()), error: err, code: code, headers: []Header{
+	return &response{bytes: []byte(err.Error()), error: err, code: code, headers: Headers{
 		{
 			Name:  ContentTypeHeaderName,
 			Value: ApplicationTextHtmlHeaderVal,
@@ -44,7 +45,7 @@ func NewErrorHtmlResponse(err error, code int) Response {
 }
 
 func NewRedirectResponse(location string) Response {
-	return NewResponse(nil, nil, nethttp.StatusMovedPermanently, Header{
+	return NewResponse(nil, nil, fasthttp.StatusMovedPermanently, Header{
 		Name:  "Location",
 		Value: location,
 	})
@@ -55,7 +56,7 @@ func NewValidationErrJsonResponse(error error) Response {
 	if !ok {
 		return NewErrorJsonResponse(errors.New("error must be of type validation.Errors"))
 	}
-	return NewJsonResponse(errs, nethttp.StatusUnprocessableEntity, NewUnprocessableEntityErr())
+	return NewJsonResponse(errs, fasthttp.StatusUnprocessableEntity, NewUnprocessableEntityErr())
 }
 
 func (r response) GetBytes() ([]byte, error) {
@@ -82,11 +83,11 @@ func (r *response) SetCode(code int) {
 	r.code = code
 }
 
-func (r response) GetHeaders() []Header {
+func (r response) GetHeaders() Headers {
 	return r.headers
 }
 
-func (r *response) SetHeaders(headers []Header) {
+func (r *response) SetHeaders(headers Headers) {
 	r.headers = headers
 }
 
@@ -94,7 +95,7 @@ type jsonResponse struct {
 	data    interface{}
 	error   error
 	code    int
-	headers []Header
+	headers Headers
 }
 
 type JsonResponseFormat struct {
@@ -138,19 +139,19 @@ func (r *jsonResponse) SetCode(code int) {
 	r.code = code
 }
 
-func (r jsonResponse) GetHeaders() []Header {
+func (r jsonResponse) GetHeaders() Headers {
 	return append(r.headers, Header{ContentTypeHeaderName, ApplicationJsonHeaderVal})
 }
 
-func (r *jsonResponse) SetHeaders(headers []Header) {
+func (r *jsonResponse) SetHeaders(headers Headers) {
 	r.headers = headers
 }
 
 func NewErrorJsonResponse(error error, headers ...Header) Response {
 	if error == nil {
-		return NewJsonResponse(nil, nethttp.StatusOK, error, headers...)
+		return NewJsonResponse(nil, fasthttp.StatusOK, error, headers...)
 	}
-	nextCode := nethttp.StatusInternalServerError
+	nextCode := fasthttp.StatusInternalServerError
 	var er erro
 	if errors.As(error, &er) {
 		nextCode = er.GetCode()

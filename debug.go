@@ -3,9 +3,6 @@ package core
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fatih/color"
-	"github.com/sirupsen/logrus"
-	logger "github.com/sirupsen/logrus"
 	"io/fs"
 	"io/ioutil"
 	"os"
@@ -15,6 +12,10 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/fatih/color"
+	"github.com/sirupsen/logrus"
+	logger "github.com/sirupsen/logrus"
 )
 
 const profileContextKey = "punqy-profile"
@@ -294,7 +295,11 @@ func (m *middleware) Handle(req Request, next Handler) Response {
 	if !m.enabled {
 		return next(req)
 	}
-	handler := strings.Replace(runtime.FuncForPC(reflect.ValueOf(req.Route.Handler).Pointer()).Name(), "-fm", "", 1)
+	route, ok := req.UserValue(RequestValueRoute).(Route)
+	if !ok {
+		return next(req)
+	}
+	handler := strings.Replace(runtime.FuncForPC(reflect.ValueOf(route.Handler).Pointer()).Name(), "-fm", "", 1)
 	if regexp.MustCompile("/*profilerHandler").MatchString(handler) {
 		return next(req)
 	}

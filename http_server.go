@@ -5,49 +5,59 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/julienschmidt/httprouter"
-	logger "github.com/sirupsen/logrus"
-	"github.com/valyala/fasthttp"
-	"net"
-	nethttp "net/http"
 	"os"
 	"os/signal"
 	"reflect"
+
+	logger "github.com/sirupsen/logrus"
+	"github.com/valyala/fasthttp"
 )
 
 const (
-	GET     = "GET"
-	HEAD    = "HEAD"
-	POST    = "POST"
-	PUT     = "PUT"
-	PATCH   = "PATCH"
-	DELETE  = "DELETE"
-	CONNECT = "CONNECT"
-	OPTIONS = "OPTIONS"
-	TRACE   = "TRACE"
+	Get     = "GET"
+	Head    = "HEAD"
+	Post    = "POST"
+	Put     = "PUT"
+	Patch   = "PATCH"
+	Delete  = "DELETE"
+	Connect = "CONNECT"
+	Options = "OPTIONS"
+	Trace   = "TRACE"
 )
 
 type Handler func(Request) Response
 
 type Middleware func(req Request, next Handler) Response
+
 type MiddlewareChain []Middleware
 
 type Request struct {
 	*fasthttp.RequestCtx
-	Route  Route
-	Params httprouter.Params
+}
+
+func NewRequest(requestCtx *fasthttp.RequestCtx, route Route) Request {
+	requestCtx.SetUserValue(RequestValueRoute, route)
+	return Request{RequestCtx: requestCtx}
 }
 
 type Response interface {
 	GetBytes() ([]byte, error)
 	GetError() error
 	GetCode() int
-	GetHeaders() []Header
+	GetHeaders() Headers
 }
 
 type Header struct {
 	Name  string
 	Value string
+}
+
+type Headers []Header
+
+func (h Headers) Each(f func(name, val string)) {
+	for _, h := range h {
+		f(h.Name, h.Value)
+	}
 }
 
 type RouteList []Route
@@ -107,25 +117,16 @@ func NewHttpServer(router Router, serverPort int) Server {
 
 func (s *server) Serve(ctx context.Context) {
 	logger.Infof("Http server listening port :%d", s.serverPort)
-	server := &fasthttp.Server{ Handler: s.router.GetMux().Handler}
+	server := &fasthttp.Server{Handler: s.router.GetMux().Handler}
 	interrupt := make(chan os.Signal, 1)
 	go func() {
 		if err := server.ListenAndServe(fmt.Sprintf(":%d", s.serverPort)); err != nil {
-			if nethttp.ErrServerClosed == err {
-				logger.Error("Http server closed \u263E")
-				return
-			}
-			if ne, ok := err.(*net.OpError); ok {
-				logger.Error(ne)
-				interrupt <- os.Interrupt
-				return
-			}
-			logger.Error(err)
+			logger.Errorf("Http server down: %s", err)
+			interrupt <- os.Interrupt
 			return
 		}
 	}()
 	signal.Notify(interrupt, os.Interrupt)
-
 	<-interrupt
 	s.shutdown(ctx, server)
 }

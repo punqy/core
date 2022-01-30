@@ -91,13 +91,13 @@ type UserStorage interface {
 }
 
 type oauth struct {
-	clientStorage      OAuthClientStorage
+	clientStorage       OAuthClientStorage
 	accessTokenStorage  OAuthAccessTokenStorage
 	refreshTokenStorage OAuthRefreshTokenStorage
 	userStorage         UserStorage
-	userProvider       UserProvider
-	accessTokenTTL     int
-	refreshTokenTTL    int
+	userProvider        UserProvider
+	accessTokenTTL      int
+	refreshTokenTTL     int
 }
 
 func NewOAuth(

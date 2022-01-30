@@ -1,6 +1,5 @@
 package core
 
-
 import (
 	"golang.org/x/crypto/bcrypt"
 )
@@ -26,7 +25,6 @@ func (e *passwordEncoder) EncodePassword(raw string, salt *string) (string, erro
 }
 
 func (e *passwordEncoder) IsPasswordValid(encoded string, raw string) (bool, error) {
-
 	rawPassBytes := []byte(raw)
 	bcryptPass := []byte(encoded)
 	err := bcrypt.CompareHashAndPassword(bcryptPass, rawPassBytes)

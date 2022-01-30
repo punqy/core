@@ -2,12 +2,20 @@ package core
 
 import (
 	"fmt"
+	"strings"
+
 	fasthttprouter "github.com/fasthttp/router"
 	logger "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
-	nethttp "net/http"
-	"strings"
 )
+
+type RequestValue string
+
+const (
+	RequestValueRoute = "route"
+)
+
+type MethodHandlerMap map[string]func(path string, handler fasthttp.RequestHandler)
 
 type StaticFiles struct {
 	Path    string
@@ -83,30 +91,21 @@ func (r *router) Apply(config Route, router *fasthttprouter.Router, ancestorPatt
 	}
 	if config.Handler != nil {
 		handler := r.createHandler(config)
-		switch config.Method {
-		case GET:
-			router.GET(path, handler)
-			break
-		case POST:
-			router.POST(path, handler)
-			break
-		case PUT:
-			router.PUT(path, handler)
-			break
-		case PATCH:
-			router.PATCH(path, handler)
-			break
-		case DELETE:
-			router.DELETE(path, handler)
-			break
-		case HEAD:
-			router.HEAD(path, handler)
-			break
-		case OPTIONS:
-			router.OPTIONS(path, handler)
-			break
+		mm := MethodHandlerMap{
+			Get:     router.GET,
+			Post:    router.POST,
+			Put:     router.PUT,
+			Patch:   router.PATCH,
+			Delete:  router.DELETE,
+			Head:    router.HEAD,
+			Options: router.POST,
+			Trace:   router.TRACE,
 		}
-		return
+		if h, ok := mm[config.Method]; ok {
+			h(path, handler)
+		} else {
+			router.ANY(path, handler)
+		}
 	}
 }
 
@@ -115,31 +114,22 @@ func (r *router) createHandler(route Route) fasthttp.RequestHandler {
 		defer func() {
 			rec := recover()
 			if rec != nil {
-				ctx.SetStatusCode(nethttp.StatusInternalServerError)
+				ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 				ctx.Response.SetBodyString("internal error")
-				err := Wrap(fmt.Errorf("%v", rec))
-				logger.Errorf("handler recovered from: %v", err)
+				logger.Errorf("handler recovered from: %v", rec)
 			}
 		}()
-		req := r.createRequest(ctx, route)
-		response := r.middleware(req, route.Handler)
-		code := response.GetCode()
-		if code == 0 {
-			code = fasthttp.StatusInternalServerError
+		res := r.middleware(NewRequest(ctx, route), route.Handler)
+		if ctx.Response.SetStatusCode(res.GetCode()); ctx.Response.StatusCode() == 0 {
+			ctx.Response.SetStatusCode(fasthttp.StatusInternalServerError)
 		}
-		ctx.SetStatusCode(code)
-		for _, h := range response.GetHeaders() {
-			ctx.Response.Header.Add(h.Name, h.Value)
-		}
-		bytes, err := response.GetBytes()
+		res.GetHeaders().Each(func(name, val string) {
+			ctx.Response.Header.Add(name, val)
+		})
+		bytes, err := res.GetBytes()
 		if err != nil {
-			response = NewResponse([]byte(""), fmt.Errorf("internal server error: %w", err), nethttp.StatusInternalServerError)
-			bytes, _ = response.GetBytes()
+			panic(err)
 		}
 		ctx.SetBody(bytes)
 	}
-}
-
-func (r *router) createRequest(ctx *fasthttp.RequestCtx, route Route) Request {
-	return Request{RequestCtx: ctx, Route: route}
 }

@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"reflect"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
@@ -13,8 +16,6 @@ import (
 	logger "github.com/sirupsen/logrus"
 	"github.com/slmder/qbuilder"
 	"go.uber.org/multierr"
-	"reflect"
-	"time"
 )
 
 type DatabaseConfig struct {
@@ -53,9 +54,9 @@ type Dal interface {
 	BuildInsert(into string) *qbuilder.InsertBuilder
 	InsertE(ctx context.Context, table string, obj interface{}) (sql.Result, error)
 	BuildUpdate(rel string) *qbuilder.UpdateBuilder
-	UpdateE(ctx context.Context, table string, obj interface{}, where... string) (sql.Result, error)
+	UpdateE(ctx context.Context, table string, obj interface{}, where ...string) (sql.Result, error)
 	BuildDelete(rel string) *qbuilder.DeleteBuilder
-	DeleteE(ctx context.Context, table string, obj interface{}, where... string) (sql.Result, error)
+	DeleteE(ctx context.Context, table string, obj interface{}, where ...string) (sql.Result, error)
 	ToArgsAndExpressions(conditions map[string]interface{}) ([]interface{}, []string)
 	PipeErr(err error) error
 	FindBy(ctx context.Context, tableName string, dest interface{}, cond qbuilder.Conditions, pag Pagination) error
@@ -184,7 +185,7 @@ func (d *dal) BuildUpdate(rel string) *qbuilder.UpdateBuilder {
 	return qbuilder.Update(rel)
 }
 
-func (d *dal) UpdateE(ctx context.Context, table string, obj interface{}, where... string) (sql.Result, error) {
+func (d *dal) UpdateE(ctx context.Context, table string, obj interface{}, where ...string) (sql.Result, error) {
 	expr := "id = :id"
 	if len(where) > 0 {
 		expr = where[0]
@@ -197,7 +198,7 @@ func (d *dal) BuildDelete(rel string) *qbuilder.DeleteBuilder {
 	return qbuilder.Delete(rel)
 }
 
-func (d *dal) DeleteE(ctx context.Context, table string, obj interface{}, where... string) (sql.Result, error) {
+func (d *dal) DeleteE(ctx context.Context, table string, obj interface{}, where ...string) (sql.Result, error) {
 	expr := "id = :id"
 	if len(where) > 0 {
 		expr = where[0]

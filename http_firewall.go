@@ -10,8 +10,8 @@ type Firewall interface {
 }
 
 type firewall struct {
-	enabled     bool
-	config      FirewallConfig
+	enabled bool
+	config  FirewallConfig
 }
 
 func NewFirewall(enabled bool, firewallConfig FirewallConfig) Firewall {

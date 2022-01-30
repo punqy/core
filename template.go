@@ -3,12 +3,13 @@ package core
 import (
 	"bytes"
 	"fmt"
-	logger "github.com/sirupsen/logrus"
 	"html/template"
 	"os"
 	"path"
 	"regexp"
 	"strings"
+
+	logger "github.com/sirupsen/logrus"
 )
 
 type block struct {
@@ -32,6 +33,7 @@ type TemplatingEngine interface {
 type engine struct {
 	templateDir string
 	templates   map[string]*template.Template
+
 	functions   template.FuncMap
 }
 
