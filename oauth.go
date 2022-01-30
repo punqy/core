@@ -18,6 +18,11 @@ const (
 	GrantTypePassword     GrantType = "password"
 )
 
+type TokenValues struct {
+	Token     string
+	ExpiresAt time.Time
+}
+
 type GrantAccessTokenRequest struct {
 	GrantType    GrantType
 	ClientSecret string
@@ -55,15 +60,13 @@ type OAuthAccessTokenValues struct {
 }
 
 type OAuthAccessToken interface {
-	Expired() bool
 	GetUserID() *string
 	GetClientID() string
 }
 
 type OAuthAccessTokenStorage interface {
-	GetAccessToken(ctx context.Context, token string) (OAuthAccessToken, error)
-	CreateAccessToken(ctx context.Context, user User, client OAuthClient, token string, expiresAt time.Time) error
-	CheckCredentials(ctx context.Context, token string) (User, error)
+	CheckCredentials(ctx context.Context, token string) (OAuthAccessToken, error)
+	CreateAccessToken(ctx context.Context, user UserInterface, client OAuthClient) (TokenValues, error)
 }
 
 type OAuthRefreshTokenValues struct {
@@ -74,26 +77,24 @@ type OAuthRefreshTokenValues struct {
 }
 
 type OAuthRefreshToken interface {
-	Expired() bool
-	SetExpired()
 	GetUserID() *string
 	GetClientID() string
 }
 
 type OAuthRefreshTokenStorage interface {
-	CheckCredentials(ctx context.Context, token string) (User, error)
-	CreateRefreshToken(ctx context.Context, user User, client OAuthClient, token string, expiresAt time.Time) error
+	CheckCredentials(ctx context.Context, token string) (OAuthRefreshToken, error)
+	CreateRefreshToken(ctx context.Context, user UserInterface, client OAuthClient) (TokenValues, error)
 }
 
 type UserStorage interface {
-	CheckCredentials(ctx context.Context, username, password string) (User, error)
+	CheckCredentials(ctx context.Context, username, password string) (UserInterface, error)
 }
 
 type oauth struct {
 	clientStorage      OAuthClientStorage
-	accessTokenStorage OAuthAccessTokenStorage
-	tokenStorage       OAuthRefreshTokenStorage
-	userStorage        UserStorage
+	accessTokenStorage  OAuthAccessTokenStorage
+	refreshTokenStorage OAuthRefreshTokenStorage
+	userStorage         UserStorage
 	userProvider       UserProvider
 	accessTokenTTL     int
 	refreshTokenTTL    int
@@ -109,13 +110,13 @@ func NewOAuth(
 	refreshTokenTTL int,
 ) OAuth {
 	return &oauth{
-		clientStorage:      storage,
-		accessTokenStorage: accessTokenStorage,
-		tokenStorage:       refreshTokenStorage,
-		userStorage:        userStorage,
-		userProvider:       userProvider,
-		accessTokenTTL:     accessTokenTTL,
-		refreshTokenTTL:    refreshTokenTTL,
+		clientStorage:       storage,
+		accessTokenStorage:  accessTokenStorage,
+		refreshTokenStorage: refreshTokenStorage,
+		userStorage:         userStorage,
+		userProvider:        userProvider,
+		accessTokenTTL:      accessTokenTTL,
+		refreshTokenTTL:     refreshTokenTTL,
 	}
 }
 
@@ -125,7 +126,7 @@ func (a *oauth) GrantAccessToken(ctx context.Context, req GrantAccessTokenReques
 	if err != nil {
 		return response, InvalidGrantErr()
 	}
-	var user User
+	var user UserInterface
 	switch req.GrantType {
 	case GrantTypePassword:
 		user, err = a.grantAccessTokenUserCredentials(ctx, req.Username, req.Password)
@@ -142,52 +143,50 @@ func (a *oauth) GrantAccessToken(ctx context.Context, req GrantAccessTokenReques
 	return a.createAccessTokenResponse(ctx, user, client)
 }
 
-func (a *oauth) grantAccessTokenUserCredentials(ctx context.Context, username string, password string) (User, error) {
-	var invalidCredentialsErr = InvalidCredentialsErr()
-	user, err := a.userStorage.CheckCredentials(ctx, username, password)
-	if err != nil {
-		return user, invalidCredentialsErr
-	}
-	return user, nil
+func (a *oauth) grantAccessTokenUserCredentials(ctx context.Context, username string, password string) (UserInterface, error) {
+	return a.userStorage.CheckCredentials(ctx, username, password)
 }
 
-func (a *oauth) grantAccessTokenClientCredentials(ctx context.Context, client OAuthClient) (User, error) {
+func (a *oauth) grantAccessTokenClientCredentials(ctx context.Context, client OAuthClient) (UserInterface, error) {
 	return nil, nil
 }
 
-func (a *oauth) grantAccessTokenRefresh(ctx context.Context, token string) (User, error) {
-	var invalidCredentialsErr = InvalidCredentialsErr()
-	user, err := a.tokenStorage.CheckCredentials(ctx, token)
+func (a *oauth) grantAccessTokenRefresh(ctx context.Context, token string) (UserInterface, error) {
+	tok, err := a.refreshTokenStorage.CheckCredentials(ctx, token)
 	if err != nil {
-		return user, invalidCredentialsErr
+		return nil, err
 	}
-	return user, nil
+	if tok.GetUserID() != nil {
+		return a.userProvider.FindUserByID(ctx, *tok.GetUserID())
+	}
+
+	return nil, nil
 }
 
-func (a *oauth) createAccessTokenResponse(ctx context.Context, user User, client OAuthClient) (GrantAccessTokenResponse, error) {
-	accessTokenExpiresAt := time.Now().Add(time.Duration(a.accessTokenTTL) * time.Minute)
-	refreshTokenExpiresAt := time.Now().Add(time.Duration(a.refreshTokenTTL) * time.Minute)
-	response := GrantAccessTokenResponse{
-		AccessToken:           RandomString(64),
-		RefreshToken:          RandomString(64),
-		AccessTokenExpiresAt:  accessTokenExpiresAt.Unix(),
-		RefreshTokenExpiresAt: refreshTokenExpiresAt.Unix(),
-	}
-	if err := a.accessTokenStorage.CreateAccessToken(ctx, user, client, response.AccessToken, accessTokenExpiresAt); err != nil {
+func (a *oauth) createAccessTokenResponse(ctx context.Context, user UserInterface, client OAuthClient) (GrantAccessTokenResponse, error) {
+	var response GrantAccessTokenResponse
+	atv, err := a.accessTokenStorage.CreateAccessToken(ctx, user, client)
+	if err != nil {
 		return response, err
 	}
-	if err := a.tokenStorage.CreateRefreshToken(ctx, user, client, response.AccessToken, refreshTokenExpiresAt); err != nil {
+	rtv, err := a.refreshTokenStorage.CreateRefreshToken(ctx, user, client)
+	if err != nil {
 		return response, err
 	}
+	response.AccessToken = atv.Token
+	response.AccessTokenExpiresAt = atv.ExpiresAt.Unix()
+	response.RefreshToken = rtv.Token
+	response.RefreshTokenExpiresAt = rtv.ExpiresAt.Unix()
+
 	return response, nil
 }
 
 type OauthAuthToken struct {
 	client OAuthClient
-	user   User
+	user   UserInterface
 }
 
-func NewOauthToken(client OAuthClient, user User) OauthAuthToken {
+func NewOauthToken(client OAuthClient, user UserInterface) OauthAuthToken {
 	return OauthAuthToken{
 		client: client,
 		user:   user,
@@ -198,7 +197,7 @@ func (o *OauthAuthToken) Client() OAuthClient {
 	return o.client
 }
 
-func (o OauthAuthToken) User() User {
+func (o OauthAuthToken) User() UserInterface {
 	return nil
 }
 
@@ -229,12 +228,9 @@ func (a *oauthAuthenticator) Authenticate(request Request) (GuardToken, error) {
 	if len(token) > 2 {
 		return nil, AuthorizationRequiredErr()
 	}
-	accessToken, err := a.accessTokenStorage.GetAccessToken(request.Context(), token[1])
+	accessToken, err := a.accessTokenStorage.CheckCredentials(request.Context(), token[1])
 	if err != nil {
 		return nil, err
-	}
-	if accessToken.Expired() {
-		return nil, AuthorizationExpiredErr()
 	}
 	client, err := a.clientStorage.Find(request.Context(), accessToken.GetClientID())
 	if err != nil {

@@ -15,18 +15,18 @@ func FromContext(ctx context.Context) (SecurityContext, bool) {
 	return s, ok
 }
 
-type User interface {
+type UserInterface interface {
 	GetID() string
 	GetPassword() string
 	GetUsername() string
 }
 
 type GuardToken interface {
-	User() User
+	User() UserInterface
 	Provider() string
 }
 
 type UserProvider interface {
-	FindUserByID(ctx context.Context, id string) (User, error)
-	FindUserByUsername(ctx context.Context, username string) (User, error)
+	FindUserByID(ctx context.Context, id string) (UserInterface, error)
+	FindUserByUsername(ctx context.Context, username string) (UserInterface, error)
 }
