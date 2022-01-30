@@ -26,11 +26,21 @@ func NewResponse(bytes []byte, error error, code int, headers ...Header) Respons
 }
 
 func NewHtmlResponse(bytes []byte, code int) Response {
-	return &response{bytes: bytes, code: code}
+	return &response{bytes: bytes, code: code, headers: []Header{
+		{
+			Name:  ContentTypeHeaderName,
+			Value: ApplicationTextHtmlHeaderVal,
+		},
+	}}
 }
 
 func NewErrorHtmlResponse(err error, code int) Response {
-	return &response{bytes: []byte(err.Error()), error: err, code: code}
+	return &response{bytes: []byte(err.Error()), error: err, code: code, headers: []Header{
+		{
+			Name:  ContentTypeHeaderName,
+			Value: ApplicationTextHtmlHeaderVal,
+		},
+	}}
 }
 
 func NewRedirectResponse(location string) Response {
@@ -93,6 +103,10 @@ type JsonResponseFormat struct {
 }
 
 func NewJsonResponse(data interface{}, code int, error error, headers ...Header) Response {
+	headers = append(headers, Header{
+		Name:  ContentTypeHeaderName,
+		Value: ApplicationJsonHeaderVal,
+	})
 	return jsonResponse{data: data, code: code, error: error, headers: headers}
 }
 

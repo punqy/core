@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/fatih/color"
@@ -42,6 +41,12 @@ func (q sqlQueryProfile) GetDuration() float64 {
 	return q.Duration
 }
 
+type SecurityContextProfile struct {
+	Provider string `json:"provider"`
+	Username string `json:"username"`
+	UserID   string `json:"user_id"`
+}
+
 type Profile struct {
 	//Id id
 	Id string `json:"id"`
@@ -51,10 +56,12 @@ type Profile struct {
 	RequestURI string `json:"request_uri"`
 	//RequestMethod http method
 	RequestMethod string `json:"request_method"`
+	//RequestMethod http method
+	RequestBody string `json:"request_body"`
 	//RequestHeaders http method
-	RequestHeaders map[string][]string `json:"request_headers"`
+	RequestHeaders map[string]string `json:"request_headers"`
 	//RequestHeaders http method
-	ResponseHeaders []Header `json:"response_headers"`
+	ResponseHeaders map[string]string `json:"response_headers"`
 	//ResponseCode http code
 	ResponseCode int `json:"response_code"`
 	//ResponseErr handle func
@@ -70,13 +77,22 @@ type Profile struct {
 	//MemoryUsed kilobytes
 	MemoryUsed uint64 `json:"memory_used"`
 	//SecurityContext with time Duration
-	SecurityContext SecurityContext `json:"security_context"`
+	SecurityContext SecurityContextProfile `json:"security_context"`
 	//SqlQueries with time Duration
 	SqlQueries qp `json:"sql_queries"`
 }
 
 func (l *Profile) SetSecurityContext(securityContext SecurityContext) {
-	l.SecurityContext = securityContext
+	sc := SecurityContextProfile{
+		Provider: securityContext.Token.Provider(),
+	}
+	user, ok := securityContext.Token.User().(UserInterface)
+	if ok && user != nil {
+		sc.Username = user.GetUsername()
+		sc.UserID = user.GetID()
+	}
+
+	l.SecurityContext = sc
 }
 
 func (l *Profile) SetRequestDuration(duration float64) {
@@ -90,9 +106,11 @@ func (l *Profile) Duration() float64 {
 func NewProfile() Profile {
 	now := time.Now()
 	return Profile{
-		Id:         fmt.Sprintf("%v", now.Unix()),
-		DateTime:   now,
-		SqlQueries: make([]sqlQueryProfile, 0),
+		Id:              fmt.Sprintf("%v", now.Unix()),
+		DateTime:        now,
+		SqlQueries:      make([]sqlQueryProfile, 0),
+		RequestHeaders:  make(map[string]string),
+		ResponseHeaders: make(map[string]string),
 	}
 }
 
@@ -286,7 +304,7 @@ func (m *middleware) Handle(req Request, next Handler) Response {
 
 	profile := NewProfile()
 
-	req.Request = req.Request.WithContext(context.WithValue(req.Request.Context(), profileContextKey, &profile))
+	req.RequestCtx.SetUserValue(profileContextKey, &profile)
 	resp := next(req)
 
 	var msa runtime.MemStats
@@ -294,13 +312,15 @@ func (m *middleware) Handle(req Request, next Handler) Response {
 
 	profile.RequestDuration = time.Now().Sub(start).Seconds()
 	profile.MemoryUsed = (msa.TotalAlloc - msb.TotalAlloc) / 1024
-	profile.RemoteAddr = req.RemoteAddr
-	profile.RequestMethod = req.Method
+	profile.RemoteAddr = req.RemoteAddr().String()
+	profile.RequestMethod = string(req.Method())
+	profile.RequestBody = string(req.PostBody())
 	profile.ResponseCode = resp.GetCode()
-	profile.RequestURI = req.RequestURI
+	profile.RequestURI = req.URI().String()
 	profile.RequestHandler = handler
-	profile.RequestHeaders = req.Header
-	profile.ResponseHeaders = resp.GetHeaders()
+	req.Request.Header.VisitAll(func(key, value []byte) {
+		profile.RequestHeaders[string(key)] = string(value)
+	})
 	if err := resp.GetError(); err != nil {
 		if stackErr, ok := err.(StackTracer); ok {
 			profile.ErrTrace = make([]Frame, 0)

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	logger "github.com/sirupsen/logrus"
+	"github.com/valyala/fasthttp"
 	"net"
 	nethttp "net/http"
 	"os"
@@ -32,7 +33,7 @@ type Middleware func(req Request, next Handler) Response
 type MiddlewareChain []Middleware
 
 type Request struct {
-	*nethttp.Request
+	*fasthttp.RequestCtx
 	Route  Route
 	Params httprouter.Params
 }
@@ -74,45 +75,42 @@ func (r Request) ParseForm(dest interface{}) error {
 	if reflect.TypeOf(dest).Kind() != reflect.Ptr {
 		return errors.New("destination must be of type pointer")
 	}
-	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(dest)
-	if err != nil {
+	if err := json.Unmarshal(r.PostBody(), dest); err != nil {
 		return BadRequestErr("Invalid json schema")
 	}
 	return nil
 }
 
 func (r Request) Get(key string, def string) string {
-	if val := r.URL.Query().Get(key); val != "" {
-		return val
+	if r.URI().QueryArgs().Has(key) {
+		return string(r.URI().QueryArgs().Peek(key))
 	}
 	return def
 }
-
 
 type Server interface {
 	Serve(ctx context.Context)
 }
 
 type server struct {
-	router         Router
-	serverPort     int
+	router     Router
+	serverPort int
 }
 
 func NewHttpServer(router Router, serverPort int) Server {
 	e := server{
-		router:         router,
-		serverPort:     serverPort,
+		router:     router,
+		serverPort: serverPort,
 	}
 	return &e
 }
 
 func (s *server) Serve(ctx context.Context) {
 	logger.Infof("Http server listening port :%d", s.serverPort)
-	server := &nethttp.Server{Addr: fmt.Sprintf(":%d", s.serverPort), Handler: s.router.GetMux()}
+	server := &fasthttp.Server{ Handler: s.router.GetMux().Handler}
 	interrupt := make(chan os.Signal, 1)
 	go func() {
-		if err := server.ListenAndServe(); err != nil {
+		if err := server.ListenAndServe(fmt.Sprintf(":%d", s.serverPort)); err != nil {
 			if nethttp.ErrServerClosed == err {
 				logger.Error("Http server closed \u263E")
 				return
@@ -132,11 +130,10 @@ func (s *server) Serve(ctx context.Context) {
 	s.shutdown(ctx, server)
 }
 
-func (s *server) shutdown(ctx context.Context, server *nethttp.Server) {
+func (s *server) shutdown(ctx context.Context, server *fasthttp.Server) {
 	logger.Info("Sig interrupt received, graceful shutdown")
-	if err := server.Shutdown(ctx); err != nil {
+	if err := server.Shutdown(); err != nil {
 		logger.Error("HttpServer shutdown err", err)
 	}
 	ctx.Done()
 }
-

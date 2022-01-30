@@ -2,43 +2,44 @@ package core
 
 import (
 	"fmt"
-	"github.com/julienschmidt/httprouter"
+	fasthttprouter "github.com/fasthttp/router"
 	logger "github.com/sirupsen/logrus"
+	"github.com/valyala/fasthttp"
 	nethttp "net/http"
 	"strings"
 )
 
 type StaticFiles struct {
 	Path    string
-	RootDir nethttp.Dir
+	RootDir string
 }
 
 type RouterConfig struct {
 	Routing         Route
-	GlobalHandler   nethttp.Handler
-	WSHandler       nethttp.Handler
-	NotFoundHandler nethttp.Handler
+	GlobalHandler   fasthttp.RequestHandler
+	WSHandler       fasthttp.RequestHandler
+	NotFoundHandler fasthttp.RequestHandler
 	Middlewares     []Middleware
 	StaticFiles     *StaticFiles
 }
 
 type Router interface {
-	Apply(config Route, rtr nethttp.Handler, ancestorPattern string)
-	GetMux() nethttp.Handler
+	Apply(config Route, router *fasthttprouter.Router, ancestorPattern string)
+	GetMux() *fasthttprouter.Router
 }
 
 type router struct {
-	mux        nethttp.Handler
+	mux        *fasthttprouter.Router
 	routes     []Route
 	middleware Middleware
 }
 
-func (r *router) GetMux() nethttp.Handler {
+func (r *router) GetMux() *fasthttprouter.Router {
 	return r.mux
 }
 
 func NewRouter(cfg RouterConfig) Router {
-	mux := httprouter.New()
+	mux := fasthttprouter.New()
 	if cfg.NotFoundHandler != nil {
 		mux.NotFound = cfg.NotFoundHandler
 	}
@@ -49,7 +50,7 @@ func NewRouter(cfg RouterConfig) Router {
 		mux.ServeFiles(cfg.StaticFiles.Path, cfg.StaticFiles.RootDir)
 	}
 	if cfg.WSHandler != nil {
-		mux.Handler(GET, "/ws", cfg.WSHandler)
+		mux.GET("/ws", cfg.WSHandler)
 	}
 	router := &router{mux: mux, middleware: chainMiddleware(cfg.Middlewares...)}
 	router.Apply(cfg.Routing, mux, "")
@@ -72,15 +73,11 @@ func chainMiddleware(middlewares ...Middleware) Middleware {
 	}
 }
 
-func (r *router) Apply(config Route, rtr nethttp.Handler, ancestorPattern string) {
-	router, ok := rtr.(*httprouter.Router)
-	if !ok {
-		panic("ERECW")
-	}
+func (r *router) Apply(config Route, router *fasthttprouter.Router, ancestorPattern string) {
 	path := fmt.Sprintf("/%s/%s", strings.Trim(ancestorPattern, "/ "), strings.Trim(config.Path, "/ "))
 	if len(config.Inner) > 0 {
 		for _, nested := range config.Inner {
-			r.Apply(nested, rtr, path)
+			r.Apply(nested, router, path)
 		}
 		return
 	}
@@ -113,38 +110,36 @@ func (r *router) Apply(config Route, rtr nethttp.Handler, ancestorPattern string
 	}
 }
 
-func (r *router) createHandler(route Route) httprouter.Handle {
-	return func(writer nethttp.ResponseWriter, request *nethttp.Request, params httprouter.Params) {
+func (r *router) createHandler(route Route) fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
 		defer func() {
 			rec := recover()
 			if rec != nil {
-				writer.WriteHeader(nethttp.StatusInternalServerError)
+				ctx.SetStatusCode(nethttp.StatusInternalServerError)
+				ctx.Response.SetBodyString("internal error")
 				err := Wrap(fmt.Errorf("%v", rec))
 				logger.Errorf("handler recovered from: %v", err)
 			}
 		}()
-		req := r.createRequest(request, params, route)
+		req := r.createRequest(ctx, route)
 		response := r.middleware(req, route.Handler)
 		code := response.GetCode()
 		if code == 0 {
-			code = nethttp.StatusInternalServerError
+			code = fasthttp.StatusInternalServerError
 		}
+		ctx.SetStatusCode(code)
 		for _, h := range response.GetHeaders() {
-			writer.Header().Add(h.Name, h.Value)
+			ctx.Response.Header.Add(h.Name, h.Value)
 		}
-		writer.WriteHeader(code)
 		bytes, err := response.GetBytes()
 		if err != nil {
 			response = NewResponse([]byte(""), fmt.Errorf("internal server error: %w", err), nethttp.StatusInternalServerError)
 			bytes, _ = response.GetBytes()
 		}
-		_, err = writer.Write(bytes)
-		if err != nil {
-			logger.Error(err)
-		}
+		ctx.SetBody(bytes)
 	}
 }
 
-func (r *router) createRequest(request *nethttp.Request, params httprouter.Params, route Route) Request {
-	return Request{Request: request, Params: params, Route: route}
+func (r *router) createRequest(ctx *fasthttp.RequestCtx, route Route) Request {
+	return Request{RequestCtx: ctx, Route: route}
 }

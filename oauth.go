@@ -198,7 +198,7 @@ func (o *OauthAuthToken) Client() OAuthClient {
 }
 
 func (o OauthAuthToken) User() UserInterface {
-	return nil
+	return o.user
 }
 
 func (o OauthAuthToken) Provider() string {
@@ -220,7 +220,7 @@ func NewOAuthAuthenticator(ats OAuthAccessTokenStorage, cs OAuthClientStorage, u
 }
 
 func (a *oauthAuthenticator) Authenticate(request Request) (GuardToken, error) {
-	tokenHeader := request.Header.Get("Authorization")
+	tokenHeader := string(request.Request.Header.Peek("Authorization"))
 	if tokenHeader == "" {
 		return nil, AuthorizationRequiredErr()
 	}
@@ -228,18 +228,18 @@ func (a *oauthAuthenticator) Authenticate(request Request) (GuardToken, error) {
 	if len(token) > 2 {
 		return nil, AuthorizationRequiredErr()
 	}
-	accessToken, err := a.accessTokenStorage.CheckCredentials(request.Context(), token[1])
+	accessToken, err := a.accessTokenStorage.CheckCredentials(request, token[1])
 	if err != nil {
 		return nil, err
 	}
-	client, err := a.clientStorage.Find(request.Context(), accessToken.GetClientID())
+	client, err := a.clientStorage.Find(request, accessToken.GetClientID())
 	if err != nil {
 		return nil, err
 	}
 	if accessToken.GetUserID() == nil {
 		return NewOauthToken(client, nil), nil
 	}
-	user, err := a.userProvider.FindUserByID(request.Context(), *accessToken.GetUserID())
+	user, err := a.userProvider.FindUserByID(request, *accessToken.GetUserID())
 	if err != nil {
 		return nil, err
 	}

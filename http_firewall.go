@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"regexp"
 )
 
@@ -41,7 +40,7 @@ func (f *firewall) Config() FirewallConfig {
 
 func (f *firewall) Handle(req Request, next Handler) Response {
 	for _, area := range f.config {
-		if !regexp.MustCompile(area.Pattern).MatchString(req.RequestURI) {
+		if !regexp.MustCompile(area.Pattern).Match(req.Path()) {
 			continue
 		}
 		if !area.Secure {
@@ -60,9 +59,8 @@ func (f *firewall) Handle(req Request, next Handler) Response {
 		securityContext := SecurityContext{
 			Token: token,
 		}
-		ctx := context.WithValue(req.Context(), SecurityContextKey, securityContext)
-		req.Request = req.WithContext(ctx)
-		if appContext, ok := ctx.Value(profileContextKey).(Profile); ok {
+		req.SetUserValue(SecurityContextKey, securityContext)
+		if appContext, ok := req.UserValue(profileContextKey).(*Profile); ok {
 			appContext.SetSecurityContext(securityContext)
 		}
 
