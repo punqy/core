@@ -59,6 +59,10 @@ func NewValidationErrJsonResponse(error error) Response {
 	return NewJsonResponse(errs, fasthttp.StatusUnprocessableEntity, NewUnprocessableEntityErr())
 }
 
+func NewOKJsonResponse() Response {
+	return NewJsonResponse("OK", fasthttp.StatusOK, nil)
+}
+
 func (r response) GetBytes() ([]byte, error) {
 	return r.bytes, nil
 }

@@ -31,6 +31,23 @@ type RouterConfig struct {
 	StaticFiles     *StaticFiles
 }
 
+const (
+	corsAllowHeaders     = "Authorization"
+	corsAllowMethods     = "HEAD,GET,POST,PUT,DELETE,OPTIONS"
+	corsAllowOrigin      = "*"
+	corsAllowCredentials = "true"
+)
+
+func CORS(next fasthttp.RequestHandler) fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
+		ctx.Response.Header.Set("Access-Control-Allow-Credentials", corsAllowCredentials)
+		ctx.Response.Header.Set("Access-Control-Allow-Headers", corsAllowHeaders)
+		ctx.Response.Header.Set("Access-Control-Allow-Methods", corsAllowMethods)
+		ctx.Response.Header.Set("Access-Control-Allow-Origin", corsAllowOrigin)
+		next(ctx)
+	}
+}
+
 type Router interface {
 	Apply(config Route, router *fasthttprouter.Router, ancestorPattern string)
 	GetMux() *fasthttprouter.Router
@@ -48,6 +65,7 @@ func (r *router) GetMux() *fasthttprouter.Router {
 
 func NewRouter(cfg RouterConfig) Router {
 	mux := fasthttprouter.New()
+	mux.RedirectTrailingSlash = false
 	if cfg.NotFoundHandler != nil {
 		mux.NotFound = cfg.NotFoundHandler
 	}
@@ -81,16 +99,16 @@ func chainMiddleware(middlewares ...Middleware) Middleware {
 	}
 }
 
-func (r *router) Apply(config Route, router *fasthttprouter.Router, ancestorPattern string) {
-	path := fmt.Sprintf("/%s/%s", strings.Trim(ancestorPattern, "/ "), strings.Trim(config.Path, "/ "))
-	if len(config.Inner) > 0 {
-		for _, nested := range config.Inner {
+func (r *router) Apply(route Route, router *fasthttprouter.Router, ancestorPattern string) {
+	path := strings.TrimRight(fmt.Sprintf("/%s/%s", strings.Trim(ancestorPattern, "/ "), strings.Trim(route.Path, "/ ")), "/")
+	if len(route.Inner) > 0 {
+		for _, nested := range route.Inner {
 			r.Apply(nested, router, path)
 		}
 		return
 	}
-	if config.Handler != nil {
-		handler := r.createHandler(config)
+	if route.Handler != nil {
+		handler := r.createHandler(route)
 		mm := MethodHandlerMap{
 			Get:     router.GET,
 			Post:    router.POST,
@@ -101,10 +119,10 @@ func (r *router) Apply(config Route, router *fasthttprouter.Router, ancestorPatt
 			Options: router.POST,
 			Trace:   router.TRACE,
 		}
-		if h, ok := mm[config.Method]; ok {
-			h(path, handler)
+		if h, ok := mm[strings.ToLower(route.Method)]; ok {
+			h(path, CORS(handler))
 		} else {
-			router.ANY(path, handler)
+			router.ANY(path, CORS(handler))
 		}
 	}
 }
