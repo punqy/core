@@ -119,7 +119,7 @@ func (r *router) Apply(route Route, router *fasthttprouter.Router, ancestorPatte
 			Options: router.POST,
 			Trace:   router.TRACE,
 		}
-		if h, ok := mm[strings.ToLower(route.Method)]; ok {
+		if h, ok := mm[route.Method]; ok {
 			h(path, CORS(handler))
 		} else {
 			router.ANY(path, CORS(handler))
