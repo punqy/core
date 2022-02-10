@@ -6,7 +6,7 @@ import (
 
 type PasswordEncoder interface {
 	EncodePassword(raw string, salt *string) (string, error)
-	IsPasswordValid(encoded string, raw string) (bool, error)
+	IsPasswordValid(encoded string, raw string) error
 }
 
 type passwordEncoder struct {
@@ -24,16 +24,8 @@ func (e *passwordEncoder) EncodePassword(raw string, salt *string) (string, erro
 	return string(hash), err
 }
 
-func (e *passwordEncoder) IsPasswordValid(encoded string, raw string) (bool, error) {
+func (e *passwordEncoder) IsPasswordValid(encoded string, raw string) error {
 	rawPassBytes := []byte(raw)
 	bcryptPass := []byte(encoded)
-	err := bcrypt.CompareHashAndPassword(bcryptPass, rawPassBytes)
-	if err != nil {
-		if err == bcrypt.ErrMismatchedHashAndPassword {
-			return false, nil
-		}
-		return false, err
-	}
-
-	return true, nil
+	return bcrypt.CompareHashAndPassword(bcryptPass, rawPassBytes)
 }
