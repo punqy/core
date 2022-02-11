@@ -350,6 +350,7 @@ func (m *middleware) Handle(req Request, next Handler) Response {
 		logger.Error(err)
 		return resp
 	}
+	req.Response.Header.Add("x-request-profile-id", profile.Id)
 	logger.WithFields(logger.Fields{
 		profile.RequestMethod: profile.ResponseCode,
 		"PID":                 profile.Id,
