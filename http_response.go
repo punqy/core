@@ -155,6 +155,9 @@ func NewErrorJsonResponse(error error, headers ...Header) Response {
 	if error == nil {
 		return NewJsonResponse(nil, fasthttp.StatusOK, error, headers...)
 	}
+	if errs, ok := error.(validation.Errors); ok {
+		return NewJsonResponse(errs, fasthttp.StatusUnprocessableEntity, NewUnprocessableEntityErr())
+	}
 	nextCode := fasthttp.StatusInternalServerError
 	var er erro
 	if errors.As(error, &er) {

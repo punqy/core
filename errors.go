@@ -1,9 +1,11 @@
 package core
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
+	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/pkg/errors"
 )
 
@@ -218,4 +220,16 @@ func (e PreconditionFailed) Error() string {
 
 func PreconditionFailedErr(message ...string) error {
 	return wrapErr(PreconditionFailed{message: JoinStrings("Precondition", message...)})
+}
+
+//======================================================================================================================
+
+func ValidationError(structPtr interface{}, fieldPtr interface{}, msg string) error {
+	return validation.ValidateStruct(structPtr,
+		validation.Field(fieldPtr,
+			validation.By(func(value interface{}) error {
+				return fmt.Errorf(msg)
+			}),
+		),
+	)
 }
