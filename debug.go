@@ -166,9 +166,13 @@ type profilerManager struct {
 }
 
 func NewManager(profilerDir string) ProfilerManager {
+	profileDir := fmt.Sprintf("%s/profile", profilerDir)
+	if err := Mkdir(profileDir); err != nil {
+		panic(err)
+	}
 	return &profilerManager{
 		profilerDir: profilerDir,
-		profileDir:  fmt.Sprintf("%s/profile", profilerDir),
+		profileDir:  profileDir,
 	}
 }
 

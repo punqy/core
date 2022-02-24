@@ -120,9 +120,11 @@ func (d *dal) DoInsert(ctx context.Context, query string, entity interface{}) (s
 	return d.pipeResultQueryLog(ctx, query, []interface{}{entity}, func() (sql.Result, error) {
 		tx := getTransactionFromContext(ctx)
 		if tx == nil {
-			return d.Connection().NamedExecContext(ctx, query, entity)
+			result, err := d.Connection().NamedExecContext(ctx, query, entity)
+			return result, d.PipeErr(err)
 		}
-		return tx.NamedExecContext(ctx, query, entity)
+		result, err := tx.NamedExecContext(ctx, query, entity)
+		return result, d.PipeErr(err)
 	})
 }
 
@@ -130,9 +132,11 @@ func (d *dal) DoUpdate(ctx context.Context, query string, entity interface{}) (s
 	return d.pipeResultQueryLog(ctx, query, []interface{}{entity}, func() (sql.Result, error) {
 		tx := getTransactionFromContext(ctx)
 		if tx == nil {
-			return d.Connection().NamedExecContext(ctx, query, entity)
+			result, err := d.Connection().NamedExecContext(ctx, query, entity)
+			return result, d.PipeErr(err)
 		}
-		return tx.NamedExecContext(ctx, query, entity)
+		result, err := tx.NamedExecContext(ctx, query, entity)
+		return result, d.PipeErr(err)
 	})
 }
 
@@ -140,9 +144,11 @@ func (d *dal) DoSelectOne(ctx context.Context, dest interface{}, query string, a
 	return d.pipeQueryLog(ctx, query, args, func() error {
 		tx := getTransactionFromContext(ctx)
 		if tx == nil {
-			return d.Connection().GetContext(ctx, dest, query, args...)
+			err := d.Connection().GetContext(ctx, dest, query, args...)
+			return d.PipeErr(err)
 		}
-		return tx.Get(dest, query, args...)
+		err := tx.Get(dest, query, args...)
+		return d.PipeErr(err)
 	})
 }
 
@@ -150,9 +156,11 @@ func (d *dal) DoSelect(ctx context.Context, dest interface{}, query string, args
 	return d.pipeQueryLog(ctx, query, args, func() error {
 		tx := getTransactionFromContext(ctx)
 		if tx == nil {
-			return d.Connection().SelectContext(ctx, dest, query, args...)
+			err := d.Connection().SelectContext(ctx, dest, query, args...)
+			return d.PipeErr(err)
 		}
-		return tx.Select(dest, query, args...)
+		err := tx.Select(dest, query, args...)
+		return d.PipeErr(err)
 	})
 }
 
@@ -251,7 +259,7 @@ func (d *dal) FindOneBy(ctx context.Context, tableName string, dest interface{},
 		Limit(1).
 		ToSQL()
 
-	return d.PipeErr(d.DoSelectOne(ctx, dest, query, args...))
+	return d.DoSelectOne(ctx, dest, query, args...)
 }
 
 func (d *dal) SoftDelete(ctx context.Context, tableName string, id uuid.UUID) error {
