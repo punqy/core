@@ -29,7 +29,7 @@ type txKeyType string
 
 const txKey = txKeyType("db.tx")
 
-const attrTransactional = "transactional"
+const AttrTransactional = "transactional"
 
 type (
 	Args       []interface{}
@@ -240,7 +240,7 @@ func (d *dal) FindBy(ctx context.Context, tableName string, dest interface{}, co
 		Offset(pager.Offset).
 		ToSQL()
 
-	return d.PipeErr(d.DoSelect(ctx, dest, query, args...))
+	return d.DoSelect(ctx, dest, query, args...)
 }
 
 func (d *dal) FindOneBy(ctx context.Context, tableName string, dest interface{}, cond qbuilder.Conditions) error {
@@ -267,7 +267,7 @@ func (d *dal) SoftDelete(ctx context.Context, tableName string, id uuid.UUID) er
 		Set("deleted_at", "now()").
 		Where("id = $1")
 	_, err := d.Transaction(ctx).Exec(query.ToSQL(), id)
-	return d.PipeErr(err)
+	return err
 }
 
 type TransactionManagerConfig struct {

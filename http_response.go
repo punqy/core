@@ -1,9 +1,11 @@
 package core
 
 import (
+	"database/sql"
 	"encoding/json"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/valyala/fasthttp"
 )
@@ -54,7 +56,7 @@ func NewRedirectResponse(location string) Response {
 func NewValidationErrJsonResponse(error error) Response {
 	errs, ok := error.(validation.Errors)
 	if !ok {
-		return NewErrorJsonResponse(errors.New("error must be of type validation.Errors"))
+		return NewErrorJSONResponse(errors.New("error must be of type validation.Errors"))
 	}
 	return NewJsonResponse(errs, fasthttp.StatusUnprocessableEntity, NewUnprocessableEntityErr())
 }
@@ -151,17 +153,34 @@ func (r *jsonResponse) SetHeaders(headers Headers) {
 	r.headers = headers
 }
 
-func NewErrorJsonResponse(error error, headers ...Header) Response {
-	if error == nil {
-		return NewJsonResponse(nil, fasthttp.StatusOK, error, headers...)
+func NewErrorJSONResponse(e error, headers ...Header) Response {
+	if e == nil {
+		return NewJsonResponse(nil, fasthttp.StatusOK, e, headers...)
 	}
-	if errs, ok := error.(validation.Errors); ok {
+	var errs validation.Errors
+	if ok := errors.As(e, &errs); ok {
 		return NewJsonResponse(errs, fasthttp.StatusUnprocessableEntity, NewUnprocessableEntityErr())
 	}
+	if errors.Is(e, sql.ErrNoRows) {
+		return NewJsonResponse(e, fasthttp.StatusNotFound, e)
+	}
+	var driverErr *pq.Error
+	if ok := errors.Is(e, driverErr); ok {
+		if driverErr.Code == ErrLockNotAvailable {
+			return NewJsonResponse("Object is being used by another transaction", fasthttp.StatusNotAcceptable, e)
+		}
+		if driverErr.Code == ErrRowCheckConstraint {
+			return NewJsonResponse("Failed row constraint check", fasthttp.StatusNotAcceptable, e)
+		}
+		if driverErr.Code == ErrUniqueConstraint {
+			return NewJsonResponse("Conflict", fasthttp.StatusConflict, e)
+		}
+	}
+
 	nextCode := fasthttp.StatusInternalServerError
 	var er erro
-	if errors.As(error, &er) {
+	if errors.As(e, &er) {
 		nextCode = er.GetCode()
 	}
-	return NewJsonResponse(error.Error(), nextCode, error, headers...)
+	return NewJsonResponse(e.Error(), nextCode, e, headers...)
 }
