@@ -62,6 +62,7 @@ type Dal interface {
 	FindBy(ctx context.Context, tableName string, dest interface{}, cond qbuilder.Conditions, pag Pagination) error
 	FindOneBy(ctx context.Context, tableName string, dest interface{}, cond qbuilder.Conditions) error
 	SoftDelete(ctx context.Context, tableName string, id uuid.UUID) error
+	Execute(ctx context.Context, sql string, args ...interface{}) (sql.Result, error)
 }
 
 type dal struct {
@@ -114,6 +115,18 @@ func (d *dal) Transaction(ctx context.Context) *sqlx.Tx {
 		logger.Error("transaction not found in given context")
 	}
 	return tx
+}
+
+func (d *dal) Execute(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+	return d.pipeResultQueryLog(ctx, query, args, func() (sql.Result, error) {
+		tx := getTransactionFromContext(ctx)
+		if tx == nil {
+			result, err := d.Connection().ExecContext(ctx, query, args...)
+			return result, d.PipeErr(err)
+		}
+		result, err := tx.ExecContext(ctx, query, args...)
+		return result, d.PipeErr(err)
+	})
 }
 
 func (d *dal) DoInsert(ctx context.Context, query string, entity interface{}) (sql.Result, error) {
@@ -266,8 +279,13 @@ func (d *dal) SoftDelete(ctx context.Context, tableName string, id uuid.UUID) er
 	query := d.BuildUpdate(tableName).
 		Set("deleted_at", "now()").
 		Where("id = $1")
-	_, err := d.Transaction(ctx).Exec(query.ToSQL(), id)
-	return err
+	tx := getTransactionFromContext(ctx)
+	if tx == nil {
+		_, err := d.Connection().ExecContext(ctx, query.ToSQL(), id)
+		return d.PipeErr(err)
+	}
+	_, err := tx.ExecContext(ctx, query.ToSQL(), id)
+	return d.PipeErr(err)
 }
 
 type TransactionManagerConfig struct {
@@ -429,6 +447,6 @@ func HandleError(err error) error {
 		}
 		return err
 	}
-	logger.Error(err)
+
 	return err
 }

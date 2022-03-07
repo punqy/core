@@ -1,6 +1,6 @@
 module github.com/punqy/core
 
-go 1.16
+go 1.18
 
 require (
 	github.com/fasthttp/router v1.4.5
