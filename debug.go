@@ -1,6 +1,8 @@
 package core
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -22,6 +24,20 @@ const profileContextKey = "punqy-profile"
 
 type qp []sqlQueryProfile
 
+func (p qp) ByDateTime() []sqlQueryProfile {
+	sort.SliceStable(p, func(i, j int) bool {
+		return p[i].DateTime.UnixNano() < p[j].DateTime.UnixNano()
+	})
+	return p
+}
+
+func (p qp) ByHashSum() []sqlQueryProfile {
+	sort.SliceStable(p, func(i, j int) bool {
+		return p[i].Hash < p[j].Hash
+	})
+	return p
+}
+
 type Frame struct {
 	Name string `json:"frame_name"`
 	File string `json:"file"`
@@ -32,6 +48,8 @@ type sqlQueryProfile struct {
 	Query    string        `json:"query"`
 	Duration float64       `json:"duration"`
 	Args     []interface{} `json:"args"`
+	DateTime time.Time     `json:"date_time"`
+	Hash     string        `json:"hash"`
 }
 
 func (q sqlQueryProfile) GetQuery() string {
@@ -124,11 +142,15 @@ func (l *Profile) QueryProfiles() []sqlQueryProfile {
 }
 
 func (l *Profile) AddQueryProfile(query string, dur float64, args []interface{}) {
-	l.SqlQueries = append(l.SqlQueries, sqlQueryProfile{
+	qp := sqlQueryProfile{
 		Query:    regexp.MustCompile("\\s{2,}").ReplaceAllString(query, " "),
 		Duration: dur,
 		Args:     args,
-	})
+		DateTime: time.Now().UTC(),
+	}
+	hash := md5.Sum([]byte(qp.Query))
+	qp.Hash = hex.EncodeToString(hash[:])
+	l.SqlQueries = append(l.SqlQueries, qp)
 }
 
 func (l Profile) TotalQExecTime() float64 {

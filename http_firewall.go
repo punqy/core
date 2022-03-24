@@ -51,7 +51,7 @@ func (f *firewall) Handle(req Request, next Handler) Response {
 		}
 		token, err := area.Authenticator.Authenticate(req)
 		if err != nil {
-			return NewErrorJSONResponse(AccessDeniedErr(err.Error()))
+			return NewErrorJSONResponse(UnauthorizedErr(err.Error()))
 		}
 		if token == nil {
 			return NewErrorJSONResponse(InvalidGrantErr())

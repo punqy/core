@@ -50,7 +50,7 @@ type Dal interface {
 	Transactional(ctx context.Context, cb func(ctx context.Context) error) error
 	SubSelect(sel string) *qbuilder.SelectBuilder
 	BuildSelect(sel ...string) *qbuilder.SelectBuilder
-	SelectE(obj interface{}) *qbuilder.SelectBuilder
+	SelectE(obj interface{}, alias ...string) *qbuilder.SelectBuilder
 	BuildInsert(into string) *qbuilder.InsertBuilder
 	InsertE(ctx context.Context, table string, obj interface{}) (sql.Result, error)
 	BuildUpdate(rel string) *qbuilder.UpdateBuilder
@@ -185,8 +185,8 @@ func (d *dal) BuildSelect(sel ...string) *qbuilder.SelectBuilder {
 	return qbuilder.Select(sel...)
 }
 
-func (d *dal) SelectE(obj interface{}) *qbuilder.SelectBuilder {
-	return qbuilder.SelectE(obj)
+func (d *dal) SelectE(obj interface{}, alias ...string) *qbuilder.SelectBuilder {
+	return qbuilder.SelectE(obj, alias...)
 }
 
 func (d *dal) SubSelect(sel string) *qbuilder.SelectBuilder {
@@ -246,7 +246,7 @@ func (d *dal) FindBy(ctx context.Context, tableName string, dest interface{}, co
 		return Wrap(fmt.Errorf("must pass a pointer to slice of stuct, not a value, to FindBy destination %T", e))
 	}
 	args, expressions := d.ToArgsAndExpressions(cond)
-	query := d.BuildSelect().
+	query := d.SelectE(e.Interface()).
 		From(tableName).
 		Where(expressions...).
 		Limit(pager.Limit).

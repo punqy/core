@@ -104,11 +104,6 @@ type jsonResponse struct {
 	headers Headers
 }
 
-type JsonResponseFormat struct {
-	Code    int         `json:"code"`
-	Payload interface{} `json:"payload"`
-}
-
 func NewJsonResponse(data interface{}, code int, error error, headers ...Header) Response {
 	headers = append(headers, Header{
 		Name:  ContentTypeHeaderName,
@@ -118,14 +113,10 @@ func NewJsonResponse(data interface{}, code int, error error, headers ...Header)
 }
 
 func (r jsonResponse) GetBytes() ([]byte, error) {
-	marshaled, err := json.Marshal(JsonResponseFormat{
-		Code:    r.code,
-		Payload: r.data,
-	})
+	marshaled, err := json.Marshal(r.data)
 	if err != nil {
 		return nil, err
 	}
-
 	return marshaled, nil
 }
 
