@@ -70,3 +70,11 @@ func Strtr(haystack string, params ...interface{}) string {
 
 	return haystack
 }
+
+func ByteArrayToStringArray(ba [][]byte) []string {
+	r := make([]string, len(ba))
+	for i, b := range ba {
+		r[i] = string(b)
+	}
+	return r
+}
