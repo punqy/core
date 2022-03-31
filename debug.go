@@ -199,11 +199,28 @@ func NewManager(profilerDir string) ProfilerManager {
 }
 
 func (m *profilerManager) List() ([]Profile, error) {
-	var profiles = make([]Profile, 0)
 	files, err := ioutil.ReadDir(m.profileDir)
 	if err != nil {
-		return profiles, err
+		return []Profile{}, err
 	}
+	if len(files) > 60 {
+		sort.SliceStable(files, func(i, j int) bool {
+			return files[i].Name() > files[j].Name()
+		})
+		for i, file := range files {
+			if i < 59 {
+				continue
+			}
+			if err := os.Remove(fmt.Sprintf("%s/%s", m.profileDir, file.Name())); err != nil {
+				return []Profile{}, err
+			}
+		}
+		files, err = ioutil.ReadDir(m.profileDir)
+		if err != nil {
+			return []Profile{}, err
+		}
+	}
+	var profiles = make([]Profile, len(files))
 	sort.SliceStable(files, func(i, j int) bool {
 		return files[i].Name() > files[j].Name()
 	})
@@ -212,7 +229,7 @@ func (m *profilerManager) List() ([]Profile, error) {
 		return profiles, nil
 	}
 
-	for _, file := range files {
+	for i, file := range files {
 		marshaled, err := os.ReadFile(fmt.Sprintf("%s/%s", m.profileDir, file.Name()))
 		if err != nil {
 			return profiles, nil
@@ -221,7 +238,7 @@ func (m *profilerManager) List() ([]Profile, error) {
 		if err := json.Unmarshal(marshaled, &profile); err != nil {
 			return profiles, err
 		}
-		profiles = append(profiles, profile)
+		profiles[i] = profile
 	}
 	return profiles, nil
 }
