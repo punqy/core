@@ -440,7 +440,7 @@ func HandleError(err error) error {
 			return ObjectOnLockErr("Object is being used by another transaction")
 		}
 		if driverErr.Code == ErrRowCheckConstraint {
-			return ObjectOnLockErr("Failed row constraint check")
+			return ConflictErr(driverErr.Message)
 		}
 		if driverErr.Code == ErrUniqueConstraint {
 			return ConflictErr(driverErr.Detail)
