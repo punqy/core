@@ -165,18 +165,18 @@ func (a *oauth) grantAccessTokenRefresh(ctx context.Context, token string) (User
 
 func (a *oauth) createAccessTokenResponse(ctx context.Context, user UserInterface, client OAuthClient) (GrantAccessTokenResponse, error) {
 	var response GrantAccessTokenResponse
-	atv, err := a.accessTokenStorage.CreateAccessToken(ctx, user, client)
+	at, err := a.accessTokenStorage.CreateAccessToken(ctx, user, client)
 	if err != nil {
 		return response, err
 	}
-	rtv, err := a.refreshTokenStorage.CreateRefreshToken(ctx, user, client)
+	rt, err := a.refreshTokenStorage.CreateRefreshToken(ctx, user, client)
 	if err != nil {
 		return response, err
 	}
-	response.AccessToken = atv.Token
-	response.AccessTokenExpiresAt = atv.ExpiresAt.Unix()
-	response.RefreshToken = rtv.Token
-	response.RefreshTokenExpiresAt = rtv.ExpiresAt.Unix()
+	response.AccessToken = at.Token
+	response.AccessTokenExpiresAt = at.ExpiresAt.Unix()
+	response.RefreshToken = rt.Token
+	response.RefreshTokenExpiresAt = rt.ExpiresAt.Unix()
 
 	return response, nil
 }
@@ -220,11 +220,11 @@ func NewOAuthAuthenticator(ats OAuthAccessTokenStorage, cs OAuthClientStorage, u
 }
 
 func (a *oauthAuthenticator) Authenticate(request Request) (GuardToken, error) {
-	tokenHeader := string(request.Request.Header.Peek("Authorization"))
-	if tokenHeader == "" {
+	tokenHeader := request.Request.Header.Peek("Authorization")
+	if tokenHeader == nil || len(tokenHeader) == 0 {
 		return nil, AuthorizationRequiredErr()
 	}
-	token := strings.Split(tokenHeader, " ")
+	token := strings.Split(string(tokenHeader), " ")
 	if len(token) > 2 {
 		return nil, AuthorizationRequiredErr()
 	}

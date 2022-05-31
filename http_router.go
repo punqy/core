@@ -7,6 +7,7 @@ import (
 	fasthttprouter "github.com/fasthttp/router"
 	logger "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
+	"github.com/valyala/fasthttp/pprofhandler"
 )
 
 type RequestValue string
@@ -29,6 +30,7 @@ type RouterConfig struct {
 	NotFoundHandler fasthttp.RequestHandler
 	Middlewares     []Middleware
 	StaticFiles     *StaticFiles
+	PprofEnabled    bool
 }
 
 const (
@@ -77,6 +79,9 @@ func NewRouter(cfg RouterConfig) Router {
 	}
 	if cfg.WSHandler != nil {
 		mux.GET("/ws", cfg.WSHandler)
+	}
+	if cfg.PprofEnabled {
+		mux.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
 	}
 	router := &router{mux: mux, middleware: chainMiddleware(cfg.Middlewares...)}
 	router.Apply(cfg.Routing, mux, "")

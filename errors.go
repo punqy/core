@@ -31,7 +31,7 @@ func JoinStrings(def string, strs ...string) string {
 	return strings.Join(strs, " ")
 }
 
-func NewLucierror(code int, message string) error {
+func NewError(code int, message string) error {
 	return errors.Wrap(erro{Code: code, Message: message}, "Error")
 }
 
@@ -184,6 +184,24 @@ func (e ObjectNotFound) Error() string {
 
 func ObjectNotFoundErr(message ...string) error {
 	return wrapErr(ObjectNotFound{message: JoinStrings("Not found", message...)})
+}
+
+//======================================================================================================================
+
+type InternalServerError struct {
+	message string
+}
+
+func (e InternalServerError) GetCode() int {
+	return http.StatusInternalServerError
+}
+
+func (e InternalServerError) Error() string {
+	return e.message
+}
+
+func InternalServerErr(message ...string) error {
+	return wrapErr(InternalServerError{message: JoinStrings("Server error", message...)})
 }
 
 //======================================================================================================================

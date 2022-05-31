@@ -66,6 +66,13 @@ type SecurityContextProfile struct {
 	UserID   string `json:"user_id"`
 }
 
+type EventProfile struct {
+	EventName   string
+	DateTime    time.Time
+	Duration    float64
+	Subscribers []string
+}
+
 type Profile struct {
 	//Id id
 	Id string `json:"id"`
@@ -99,6 +106,8 @@ type Profile struct {
 	SecurityContext SecurityContextProfile `json:"security_context"`
 	//SqlQueries with time Duration
 	SqlQueries qp `json:"sql_queries"`
+	//Events with time Duration
+	Events []EventProfile `json:"events"`
 }
 
 func (l *Profile) SetSecurityContext(securityContext SecurityContext) {
@@ -122,11 +131,10 @@ func (l *Profile) Duration() float64 {
 	return l.RequestDuration
 }
 
-func NewProfile() Profile {
-	now := time.Now()
+func NewProfile(t time.Time) Profile {
 	return Profile{
-		Id:              fmt.Sprintf("%v", now.Unix()),
-		DateTime:        now,
+		Id:              fmt.Sprintf("%v", t.Unix()),
+		DateTime:        t,
 		SqlQueries:      make([]sqlQueryProfile, 0),
 		RequestHeaders:  make(map[string]string),
 		ResponseHeaders: make(map[string]string),
@@ -151,6 +159,20 @@ func (l *Profile) AddQueryProfile(query string, dur float64, args []interface{})
 	hash := md5.Sum([]byte(qp.Query))
 	qp.Hash = hex.EncodeToString(hash[:])
 	l.SqlQueries = append(l.SqlQueries, qp)
+}
+
+func (l *Profile) AddEventDispatcherProfile(evt string, dur float64, subs EventSubscribers) {
+	names := make([]string, len(subs))
+	for i, s := range subs {
+		names[i] = strings.Replace(runtime.FuncForPC(reflect.ValueOf(s).Pointer()).Name(), "-fm", "", 1)
+	}
+	ep := EventProfile{
+		DateTime:    time.Now().UTC(),
+		EventName:   evt,
+		Duration:    dur,
+		Subscribers: names,
+	}
+	l.Events = append(l.Events, ep)
 }
 
 func (l Profile) TotalQExecTime() float64 {
@@ -348,17 +370,15 @@ func (m *middleware) Handle(req Request, next Handler) Response {
 	}
 	var msb runtime.MemStats
 	runtime.ReadMemStats(&msb)
-	start := time.Now()
 
-	profile := NewProfile()
-
+	profile := NewProfile(req.Time())
 	req.RequestCtx.SetUserValue(profileContextKey, &profile)
 	resp := next(req)
 
 	var msa runtime.MemStats
 	runtime.ReadMemStats(&msa)
 
-	profile.RequestDuration = time.Now().Sub(start).Seconds()
+	profile.RequestDuration = time.Now().Sub(req.Time()).Seconds()
 	profile.MemoryUsed = (msa.TotalAlloc - msb.TotalAlloc) / 1024
 	profile.RemoteAddr = req.RemoteAddr().String()
 	profile.RequestMethod = string(req.Method())

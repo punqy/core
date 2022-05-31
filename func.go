@@ -78,3 +78,22 @@ func ByteArrayToStringArray(ba [][]byte) []string {
 	}
 	return r
 }
+
+func Substr(s string, from, length int) string {
+	//create array like string view
+	wb := []string{}
+	wb = strings.Split(s, "")
+
+	//miss nil pointer error
+	to := from + length
+
+	if to > len(wb) {
+		to = len(wb)
+	}
+
+	if from > len(wb) {
+		from = len(wb)
+	}
+
+	return strings.Join(wb[from:to], "")
+}
